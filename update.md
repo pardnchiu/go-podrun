@@ -1,73 +1,43 @@
 # Update Log
 
-> Generated: 2026-01-18 00:00
-> v0.1.0 → v0.2.0
+> Generated: 2026-01-18 16:00
+> v0.2.0 → v0.2.1
 
 ## Recommended Commit Message
 
-feat: Add CLI command parsing and argument handling system
+refactor: Extract command parsing and utilities into internal packages
 <details>
 <summary>翻譯</summary>
-feat: 新增 CLI 命令解析與參數處理系統
+refactor: 將命令解析與工具函式抽取至 internal packages
 </details>
 
 ***
 
 ## Summary
 
-Add comprehensive CLI argument parsing with support for multiple commands (info, export, deploy, clone, domain) and flexible flag handling. Refactor dependency checking into modular function with improved cross-platform package manager support.
+Restructure codebase by extracting command parsing logic and utility functions from `cmd/cli/main.go` into dedicated internal packages (`internal/command`, `internal/utils`) for better modularity and separation of concerns.
 <details>
 <summary>翻譯</summary>
-新增完整的 CLI 參數解析功能，支援多種命令（info、export、deploy、clone、domain）與彈性的 flag 處理。重構依賴檢查為模組化函式，改善跨平台套件管理器支援。
+重構程式碼結構，將命令解析邏輯與工具函式從 `cmd/cli/main.go` 抽取至專用的 internal packages（`internal/command`、`internal/utils`），提升模組化與關注點分離。
 </details>
 
 ## Changes
 
-### FEAT
-- Add `parseCommand()` function for CLI command routing (info, export, deploy, clone, domain)
-- Add `PodmanArg` struct to encapsulate parsed CLI arguments
-- Add `parseArgs()` function with support for flags: `-u`, `--folder`, `--type`, `--output`, `-o`, `-f`
-- Add `getLocalDir()` function for local directory validation with docker-compose.yml detection
-- Add `setRemoteDir()` function to generate unique remote paths using MD5 hash of MAC address and folder
-- Add `getMAC()` function for hardware address retrieval
-- Add `isDir()` and `fileExists()` helper functions
-
-<details>
-<summary>翻譯</summary>
-
-- 新增 `parseCommand()` 函式用於 CLI 命令路由（info、export、deploy、clone、domain）
-- 新增 `PodmanArg` struct 封裝解析後的 CLI 參數
-- 新增 `parseArgs()` 函式，支援 flags：`-u`、`--folder`、`--type`、`--output`、`-o`、`-f`
-- 新增 `getLocalDir()` 函式，驗證本地目錄並檢測 docker-compose.yml
-- 新增 `setRemoteDir()` 函式，使用 MAC 地址與資料夾的 MD5 hash 產生唯一遠端路徑
-- 新增 `getMAC()` 函式取得硬體地址
-- 新增 `isDir()` 與 `fileExists()` 輔助函式
-
-</details>
-
 ### REFACTOR
-- Extract dependency checking logic from `main()` into dedicated `checkRelyPackages()` function
-- Restructure `main()` to use modular error handling pattern
-- Improve Linux package manager detection to support apt, dnf, yum, and pacman
+- Extract `PodmanArg` struct and command parsing logic to `internal/command` package
+- Move `New()` (formerly `parseCommand()`), `parseArgs()`, `getLocalDir()`, `setRemoteDir()` to `internal/command/command.go`
+- Extract `CheckRelyPackages()`, `installPackage()` to `internal/utils/checkRelyPackages.go`
+- Extract common utilities `IsDir()`, `FileExist()`, `GetMAC()`, `CmdExec()` to `internal/utils/utils.go`
+- Simplify `cmd/cli/main.go` to entry point only, removing unused imports (`crypto/md5`, `encoding/hex`, `net`, `path/filepath`, `runtime`, `strings`, `os/exec`)
 
 <details>
 <summary>翻譯</summary>
 
-- 將依賴檢查邏輯從 `main()` 抽取至專用的 `checkRelyPackages()` 函式
-- 重構 `main()` 採用模組化錯誤處理模式
-- 改善 Linux 套件管理器偵測，支援 apt、dnf、yum 與 pacman
-
-</details>
-
-### FIX
-- Fix brew install command by removing incorrect `-y` flag
-- Improve error handling with proper `fmt.Errorf` returns instead of inline prints
-
-<details>
-<summary>翻譯</summary>
-
-- 修正 brew 安裝命令，移除錯誤的 `-y` flag
-- 改善錯誤處理，使用正確的 `fmt.Errorf` 回傳取代行內列印
+- 將 `PodmanArg` struct 與命令解析邏輯抽取至 `internal/command` package
+- 將 `New()`（原 `parseCommand()`）、`parseArgs()`、`getLocalDir()`、`setRemoteDir()` 移至 `internal/command/command.go`
+- 將 `CheckRelyPackages()`、`installPackage()` 抽取至 `internal/utils/checkRelyPackages.go`
+- 將通用工具函式 `IsDir()`、`FileExist()`、`GetMAC()`、`CmdExec()` 抽取至 `internal/utils/utils.go`
+- 簡化 `cmd/cli/main.go` 為純進入點，移除未使用的 imports（`crypto/md5`、`encoding/hex`、`net`、`path/filepath`、`runtime`、`strings`、`os/exec`）
 
 </details>
 
@@ -77,7 +47,10 @@ Add comprehensive CLI argument parsing with support for multiple commands (info,
 
 | File | Status | Tag |
 |------|--------|-----|
-| `cmd/cli/main.go` | Modified | FEAT |
+| `cmd/cli/main.go` | Modified | REFACTOR |
+| `internal/command/command.go` | Added | REFACTOR |
+| `internal/utils/utils.go` | Added | REFACTOR |
+| `internal/utils/checkRelyPackages.go` | Added | REFACTOR |
 
 ***
 
