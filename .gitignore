@@ -1,0 +1,8 @@
+.DS_Store
+.env
+
+# template hidden
+README.md
+README.zh.md
+podrun.md
+sh/*
