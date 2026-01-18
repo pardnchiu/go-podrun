@@ -57,7 +57,7 @@ func CheckRelyPackages() error {
 		installed := false
 		for _, pm := range pkgManagers {
 			if _, err := exec.LookPath(pm.name); err == nil {
-				if err := CmdExec(pm.name, pm.args...); err != nil {
+				if err := CMDRun(pm.name, pm.args...); err != nil {
 					return fmt.Errorf("[x] failed to install packages %s", err)
 				}
 				installed = true
@@ -78,7 +78,7 @@ func installPackage(pkg string, args ...string) error {
 		return err
 	}
 
-	err := CmdExec(pkg, args...)
+	err := CMDRun(pkg, args...)
 	if err != nil {
 		return err
 	}

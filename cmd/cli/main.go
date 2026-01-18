@@ -15,11 +15,30 @@ func main() {
 		os.Exit(1)
 	}
 
-	args, err := command.New()
+	parseCmd, err := command.New()
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}
 
-	slog.Info("parsed args", slog.Any("args", args))
+	if err := command.CheckSSHConnection(); err != nil {
+		slog.Error("failed to connect to remote server",
+			"err", err)
+		os.Exit(1)
+	}
+
+	switch parseCmd.RemoteArgs[0] {
+	case "domain":
+	case "deploy":
+	case "up":
+		uid, err := parseCmd.Up()
+		if err != nil {
+			slog.Error("failed to connect to remote server",
+				"err", err)
+		}
+		slog.Info(uid)
+		// case "rm":
+		// case "ports":
+		// case "export":
+	}
 }

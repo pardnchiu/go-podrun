@@ -54,17 +54,21 @@ func New() (*PodmanArg, error) {
 	}
 	args.LocalDir = localDir
 
-	remoteDir, err := setRemoteDir(localDir)
+	uid, remoteDir, err := setRemoteDir(localDir)
 	if err != nil {
 		return nil, fmt.Errorf("[x] %v", err)
 	}
 	args.RemoteDir = remoteDir
 
+	if args.UID == "" {
+		args.UID = uid
+	}
+
 	return args, nil
 }
 
 func parseArgs(args []string) (*PodmanArg, error) {
-	newArg := &PodmanArg{Target: "pod"}
+	newArg := &PodmanArg{Target: "podman"}
 	conposeExist := false
 
 	for i := 0; i < len(args); {
@@ -124,25 +128,36 @@ func parseArgs(args []string) (*PodmanArg, error) {
 }
 
 func getLocalDir(folder string) (string, error) {
-	if folder == "" {
-		return os.Getwd()
+	var err error
+	newFolder := folder
+	if newFolder == "" {
+		newFolder, err = os.Getwd()
+		if err != nil {
+			return "", err
+		}
 	}
-	absPath, _ := filepath.Abs(folder)
+	absPath, err := filepath.Abs(newFolder)
+	if err != nil {
+		return "", err
+	}
 	if !utils.IsDir(absPath) {
-		return "", fmt.Errorf("%s: %s", "folder is not exist", absPath)
+		return "", fmt.Errorf("folder does not exist: %s", absPath)
 	}
 	if !utils.FileExist(filepath.Join(absPath, "docker-compose.yml")) &&
 		!utils.FileExist(filepath.Join(absPath, "docker-compose.yaml")) {
-		return "", fmt.Errorf("%s: %s", "docker-compose.yml not found in folder", absPath)
+		return "", fmt.Errorf("docker-compose.yml not found in folder: %s", absPath)
 	}
 	return absPath, nil
 }
 
-func setRemoteDir(localFolder string) (string, error) {
+func setRemoteDir(localFolder string) (string, string, error) {
 	mac, err := utils.GetMAC()
 	if err != nil {
 		mac, _ = os.Hostname()
 	}
 	hash := md5.Sum(fmt.Appendf(nil, "%s@%s", mac, localFolder))
-	return filepath.Join("/home/podrun", fmt.Sprintf("%s_%s", filepath.Base(localFolder), hex.EncodeToString(hash[:])[:8])), nil
+	return hex.EncodeToString(hash[:]),
+		filepath.Join("/home/podrun",
+			fmt.Sprintf("%s_%s", filepath.Base(localFolder), hex.EncodeToString(hash[:])[:8])),
+		nil
 }

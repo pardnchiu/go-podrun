@@ -1,43 +1,85 @@
 # Update Log
 
-> Generated: 2026-01-18 16:00
-> v0.2.0 → v0.2.1
+> Generated: 2026-01-18 16:15
+> v0.2.0 → v0.3.0
 
 ## Recommended Commit Message
 
-refactor: Extract command parsing and utilities into internal packages
+feat: Add container deployment via SSH with rsync synchronization
 <details>
 <summary>翻譯</summary>
-refactor: 將命令解析與工具函式抽取至 internal packages
+feat: 新增透過 SSH 進行容器部署與 rsync 同步功能
 </details>
 
 ***
 
 ## Summary
 
-Restructure codebase by extracting command parsing logic and utility functions from `cmd/cli/main.go` into dedicated internal packages (`internal/command`, `internal/utils`) for better modularity and separation of concerns.
+Add complete container deployment workflow including SSH connection validation, file synchronization via rsync, and remote podman compose execution. Introduce PostgreSQL database integration for future deployment tracking.
 <details>
 <summary>翻譯</summary>
-重構程式碼結構，將命令解析邏輯與工具函式從 `cmd/cli/main.go` 抽取至專用的 internal packages（`internal/command`、`internal/utils`），提升模組化與關注點分離。
+新增完整的容器部署流程，包含 SSH 連線驗證、透過 rsync 進行檔案同步、以及遠端 podman compose 執行。引入 PostgreSQL 資料庫整合，為未來部署追蹤做準備。
 </details>
 
 ## Changes
 
-### REFACTOR
-- Extract `PodmanArg` struct and command parsing logic to `internal/command` package
-- Move `New()` (formerly `parseCommand()`), `parseArgs()`, `getLocalDir()`, `setRemoteDir()` to `internal/command/command.go`
-- Extract `CheckRelyPackages()`, `installPackage()` to `internal/utils/checkRelyPackages.go`
-- Extract common utilities `IsDir()`, `FileExist()`, `GetMAC()`, `CmdExec()` to `internal/utils/utils.go`
-- Simplify `cmd/cli/main.go` to entry point only, removing unused imports (`crypto/md5`, `encoding/hex`, `net`, `path/filepath`, `runtime`, `strings`, `os/exec`)
+### FEAT
+- Add `Up()` method for deploying containers to remote server via SSH and podman compose
+- Add `Deploy` struct to represent deployment metadata (UID, PodID, LocalDir, RemoteDir, Status, etc.)
+- Add `CheckSSHConnection()` function to validate SSH connectivity before deployment
+- Add `RsyncToRemote()` method for synchronizing local files to remote server with exclusion patterns
+- Add command routing in main.go for `domain`, `deploy`, `up` subcommands
+- Add `SSHRun()` and `SSEOutput()` utility functions for remote command execution
+- Add `CMDOutput()` utility function for capturing local command output
+- Add `modifyComposeFile()` to strip host ports and add SELinux `:z` labels for volume mounts
 
 <details>
 <summary>翻譯</summary>
 
-- 將 `PodmanArg` struct 與命令解析邏輯抽取至 `internal/command` package
-- 將 `New()`（原 `parseCommand()`）、`parseArgs()`、`getLocalDir()`、`setRemoteDir()` 移至 `internal/command/command.go`
-- 將 `CheckRelyPackages()`、`installPackage()` 抽取至 `internal/utils/checkRelyPackages.go`
-- 將通用工具函式 `IsDir()`、`FileExist()`、`GetMAC()`、`CmdExec()` 抽取至 `internal/utils/utils.go`
-- 簡化 `cmd/cli/main.go` 為純進入點，移除未使用的 imports（`crypto/md5`、`encoding/hex`、`net`、`path/filepath`、`runtime`、`strings`、`os/exec`）
+- 新增 `Up()` method，透過 SSH 與 podman compose 部署容器至遠端伺服器
+- 新增 `Deploy` struct 表示部署 metadata（UID、PodID、LocalDir、RemoteDir、Status 等）
+- 新增 `CheckSSHConnection()` 函式，於部署前驗證 SSH 連線
+- 新增 `RsyncToRemote()` method，使用排除規則同步本地檔案至遠端伺服器
+- 新增 main.go 命令路由，支援 `domain`、`deploy`、`up` 子命令
+- 新增 `SSHRun()` 與 `SSEOutput()` 工具函式執行遠端命令
+- 新增 `CMDOutput()` 工具函式擷取本地命令輸出
+- 新增 `modifyComposeFile()` 移除 host ports 並為 volume mounts 加入 SELinux `:z` 標籤
+
+</details>
+
+### UPDATE
+- Update `setRemoteDir()` to return UID (MD5 hash) along with remote directory path
+- Change default `Target` from "pod" to "podman"
+- Update `CMDRun()` (formerly `CmdExec()`) to attach stdin for interactive commands
+
+<details>
+<summary>翻譯</summary>
+
+- 更新 `setRemoteDir()` 同時回傳 UID（MD5 hash）與遠端目錄路徑
+- 將預設 `Target` 從 "pod" 改為 "podman"
+- 更新 `CMDRun()`（原 `CmdExec()`）附加 stdin 以支援互動式命令
+
+</details>
+
+### FIX
+- Fix `getLocalDir()` to properly handle `filepath.Abs()` error instead of ignoring it
+- Improve error messages in `getLocalDir()` for clarity
+
+<details>
+<summary>翻譯</summary>
+
+- 修正 `getLocalDir()` 正確處理 `filepath.Abs()` 錯誤，而非忽略
+- 改善 `getLocalDir()` 錯誤訊息的清晰度
+
+</details>
+
+### REFACTOR
+- Rename `CmdExec()` to `CMDRun()` for naming consistency with `CMDOutput()`
+
+<details>
+<summary>翻譯</summary>
+
+- 將 `CmdExec()` 重新命名為 `CMDRun()` 以與 `CMDOutput()` 命名一致
 
 </details>
 
@@ -47,10 +89,12 @@ Restructure codebase by extracting command parsing logic and utility functions f
 
 | File | Status | Tag |
 |------|--------|-----|
-| `cmd/cli/main.go` | Modified | REFACTOR |
-| `internal/command/command.go` | Added | REFACTOR |
-| `internal/utils/utils.go` | Added | REFACTOR |
-| `internal/utils/checkRelyPackages.go` | Added | REFACTOR |
+| `cmd/cli/main.go` | Modified | FEAT |
+| `internal/command/command.go` | Modified | UPDATE |
+| `internal/command/checkSSHConnection.go` | Added | FEAT |
+| `internal/command/up.go` | Added | FEAT |
+| `internal/utils/utils.go` | Modified | FEAT |
+| `internal/utils/checkRelyPackages.go` | Modified | REFACTOR |
 
 ***
 
