@@ -1,63 +1,43 @@
 # Update Log
 
-> Generated: 2026-01-18 10:15 (+00:00)
-> v0.5.0 → v0.6.0
+> Generated: 2026-01-18 10:30 (+00:00)
+> v0.6.0 → v0.7.0
 
 ## Recommended Commit Message
 
-feat: Implement compose subcommands and fix context-aware -f flag parsing
+feat: Add clear command for complete deployment cleanup (rm in ddrun.sh))
 <details>
 <summary>翻譯</summary>
-feat: 實作 compose 子命令並修正上下文感知的 -f 旗標解析
+feat: 新增 clear 命令以完整清理部署 (rm in ddrun.sh))
 </details>
 
 ***
 
 ## Summary
 
-Implement missing compose subcommand handlers (ps, logs, restart, exec, build) via unified `runCMD()` method, and fix argument parsing to correctly distinguish between `logs -f` (follow mode) and `-f <file>` (compose file path) based on command context.
+Add `clear` subcommand to compose dispatcher that performs complete deployment cleanup by removing containers, volumes, images, and the project folder on the remote host.
 <details>
 <summary>翻譯</summary>
-透過統一的 `runCMD()` 方法實作缺少的 compose 子命令處理器（ps、logs、restart、exec、build），並修正參數解析以根據命令上下文正確區分 `logs -f`（追蹤模式）和 `-f <file>`（compose 檔案路徑）。
+在 compose dispatcher 新增 `clear` 子命令，透過移除遠端主機上的容器、volumes、映像和專案資料夾來執行完整的部署清理。
 </details>
 
 ## Changes
 
 ### FEAT
-- Implement ps, logs, restart, exec, build compose subcommands via unified `runCMD()` handler
-- Wire up previously empty switch cases to execute actual remote commands
+- Add `clear` command to compose dispatcher switch statement
+- Implement `clear()` method with three-phase cleanup:
+  - Remove containers and volumes via `podman compose down -v`
+  - Remove images via `podman compose down --rmi all`
+  - Remove project folder using privileged alpine container
 
 <details>
 <summary>翻譯</summary>
 
-- 透過統一的 `runCMD()` handler 實作 ps、logs、restart、exec、build compose 子命令
-- 將先前空的 switch cases 連接至實際執行遠端命令
-
-</details>
-
-### FIX
-- Fix `-f` flag parsing to correctly handle `logs -f` as follow flag instead of file path
-- Add early command detection in `parseArgs()` to determine context before flag processing
-
-<details>
-<summary>翻譯</summary>
-
-- 修正 `-f` 旗標解析，正確處理 `logs -f` 為追蹤旗標而非檔案路徑
-- 在 `parseArgs()` 新增提前命令偵測，在旗標處理前確定上下文
-
-</details>
-
-### REFACTOR
-- Consolidate down, ps, logs, restart, exec, build cases into single `runCMD()` method
-- Move ANSI color constants to top of `composeCMD.go` file
-- Simplify remote command execution by removing grep filter
-
-<details>
-<summary>翻譯</summary>
-
-- 將 down、ps、logs、restart、exec、build cases 整合至單一 `runCMD()` 方法
-- 將 ANSI 色彩常數移至 `composeCMD.go` 檔案頂部
-- 移除 grep 過濾器以簡化遠端命令執行
+- 在 compose dispatcher switch 語句新增 `clear` 命令
+- 實作 `clear()` 方法，包含三階段清理：
+  - 透過 `podman compose down -v` 移除容器和 volumes
+  - 透過 `podman compose down --rmi all` 移除映像
+  - 使用特權 alpine 容器移除專案資料夾
 
 </details>
 
@@ -67,8 +47,7 @@ Implement missing compose subcommand handlers (ps, logs, restart, exec, build) v
 
 | File | Status | Tag |
 |------|--------|-----|
-| `internal/command/command.go` | Modified | FIX |
-| `internal/command/composeCMD.go` | Modified | FEAT, REFACTOR |
+| `internal/command/composeCMD.go` | Modified | FEAT |
 
 ***
 

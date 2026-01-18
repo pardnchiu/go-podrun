@@ -50,6 +50,8 @@ func (p *PodmanArg) ComposeCMD() (string, error) {
 	switch p.Command {
 	case "up":
 		return p.up(d)
+	case "clear":
+		return p.clear(d)
 	case "down", "ps", "logs", "restart", "exec", "build":
 		return p.runCMD(d)
 	}
@@ -114,6 +116,46 @@ func (p *PodmanArg) up(d *Deploy) (string, error) {
 		fmt.Println(output)
 		fmt.Println("──────────────────────────────────────────────────" + Reset)
 	}
+	return p.UID, nil
+}
+
+func (p *PodmanArg) clear(d *Deploy) (string, error) {
+	// * 停止並移除容器和 volumes
+	fmt.Println("[*] remove containers and volumes")
+	fmt.Println(Hint + "──────────────────────────────────────────────────")
+	downCmd := fmt.Sprintf(
+		"cd '%s' && podman compose down -v 2>&1 | grep -v 'no container\\|no pod' || true",
+		p.RemoteDir,
+	)
+	if err := utils.SSHRun(downCmd); err != nil {
+		return "", fmt.Errorf("failed to remove containers: %w", err)
+	}
+	fmt.Println("──────────────────────────────────────────────────" + Reset)
+
+	// * 移除映像
+	fmt.Println("[*] clean images")
+	fmt.Println(Hint + "──────────────────────────────────────────────────")
+	imageCmd := fmt.Sprintf(
+		"cd '%s' && podman compose down --rmi all 2>&1 | grep -v 'no container\\|no pod\\|no image' || true",
+		p.RemoteDir,
+	)
+	if err := utils.SSHRun(imageCmd); err != nil {
+		return "", fmt.Errorf("failed to remove images: %w", err)
+	}
+	fmt.Println("──────────────────────────────────────────────────" + Reset)
+
+	// * 移除資料夾
+	fmt.Println("[*] remove project folder")
+	fmt.Println(Hint + "──────────────────────────────────────────────────")
+	removeCmd := fmt.Sprintf(
+		"podman run --rm --privileged -v '%s:/parent' alpine:latest sh -c 'rm -rf /parent/%s'",
+		filepath.Dir(p.RemoteDir),
+		filepath.Base(p.RemoteDir),
+	)
+	if err := utils.SSHRun(removeCmd); err != nil {
+		return "", fmt.Errorf("failed to remove folder: %w", err)
+	}
+	fmt.Println(Hint + "──────────────────────────────────────────────────" + Reset)
 	return p.UID, nil
 }
 
