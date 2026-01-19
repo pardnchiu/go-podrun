@@ -1,43 +1,91 @@
 # Update Log
 
-> Generated: 2026-01-18 10:30 (+00:00)
-> v0.6.0 → v0.7.0
+> Generated: 2026-01-20 09:30 (+00:00)
+> v0.7.0 → v0.8.0
 
 ## Recommended Commit Message
 
-feat: Add clear command for complete deployment cleanup (rm in ddrun.sh))
+feat: Add REST API server with SQLite persistence for pod management
 <details>
 <summary>翻譯</summary>
-feat: 新增 clear 命令以完整清理部署 (rm in ddrun.sh))
+feat: 新增 REST API Server 與 SQLite 持久化以管理 Pod
 </details>
 
 ***
 
 ## Summary
 
-Add `clear` subcommand to compose dispatcher that performs complete deployment cleanup by removing containers, volumes, images, and the project folder on the remote host.
+Add a complete REST API layer with SQLite database for persisting pod deployment information. The CLI now automatically syncs pod metadata to the database on up/down/clear operations, enabling centralized tracking of deployed containers across multiple hosts.
 <details>
 <summary>翻譯</summary>
-在 compose dispatcher 新增 `clear` 子命令，透過移除遠端主機上的容器、volumes、映像和專案資料夾來執行完整的部署清理。
+新增完整 REST API 層與 SQLite 資料庫，用於持久化 Pod 部署資訊。CLI 現在會在 up/down/clear 操作時自動同步 Pod metadata 至資料庫，實現多主機部署容器的集中追蹤管理。
 </details>
 
 ## Changes
 
 ### FEAT
-- Add `clear` command to compose dispatcher switch statement
-- Implement `clear()` method with three-phase cleanup:
-  - Remove containers and volumes via `podman compose down -v`
-  - Remove images via `podman compose down --rmi all`
-  - Remove project folder using privileged alpine container
+- Add REST API server (`cmd/api`) with Gin framework for pod management
+- Add SQLite database layer (`internal/database`) with CRUD operations for pods
+- Add Pod model (`internal/model`) with hostname and IP tracking
+- Add API routes for pod upsert, update, and list operations
+- Integrate pod sync to database on compose up/down/clear commands
+- Add `GetLocalIP()` utility to capture deployer's IP address
 
 <details>
 <summary>翻譯</summary>
 
-- 在 compose dispatcher switch 語句新增 `clear` 命令
-- 實作 `clear()` 方法，包含三階段清理：
-  - 透過 `podman compose down -v` 移除容器和 volumes
-  - 透過 `podman compose down --rmi all` 移除映像
-  - 使用特權 alpine 容器移除專案資料夾
+- 新增 REST API Server（`cmd/api`）使用 Gin 框架管理 Pod
+- 新增 SQLite 資料庫層（`internal/database`）支援 Pod CRUD 操作
+- 新增 Pod Model（`internal/model`）包含 hostname 與 IP 追蹤
+- 新增 API routes 支援 pod upsert、update、list 操作
+- 整合 compose up/down/clear 指令時自動同步 Pod 資訊至資料庫
+- 新增 `GetLocalIP()` utility 取得部署者 IP 位址
+
+</details>
+
+### UPDATE
+- Extend `PodmanArg` struct with `Hostname` and `IP` fields
+- Refactor `ComposeCMD` to return `*model.Pod` instead of string UID
+- Add pod info output (PodID, PodName, Hostname, IP) after successful deployment
+
+<details>
+<summary>翻譯</summary>
+
+- 擴展 `PodmanArg` 結構新增 `Hostname` 與 `IP` 欄位
+- 重構 `ComposeCMD` 回傳 `*model.Pod` 取代字串 UID
+- 部署成功後輸出 Pod 資訊（PodID、PodName、Hostname、IP）
+
+</details>
+
+### FIX
+- Fix typo in previous commit message (extra `)` character)
+
+<details>
+<summary>翻譯</summary>
+
+- 修正上次 commit message 的錯字（多餘的 `)` 字元）
+
+</details>
+
+### ADD
+- Add SQL schema file (`sql/create.sql`) for pods, records, and domains tables
+- Add `.env.expample` DB_PATH configuration
+
+<details>
+<summary>翻譯</summary>
+
+- 新增 SQL schema 檔案（`sql/create.sql`）定義 pods、records、domains 資料表
+- 新增 `.env.expample` DB_PATH 設定項
+
+</details>
+
+### CHORE
+- Add gin-gonic/gin, mattn/go-sqlite3, and related dependencies
+
+<details>
+<summary>翻譯</summary>
+
+- 新增 gin-gonic/gin、mattn/go-sqlite3 及相關依賴
 
 </details>
 
@@ -47,7 +95,18 @@ Add `clear` subcommand to compose dispatcher that performs complete deployment c
 
 | File | Status | Tag |
 |------|--------|-----|
+| `cmd/api/main.go` | Added | FEAT |
+| `internal/database/sqlite.go` | Added | FEAT |
+| `internal/model/pod.go` | Added | FEAT |
+| `internal/routes/routes.go` | Added | FEAT |
+| `sql/create.sql` | Added | ADD |
 | `internal/command/composeCMD.go` | Modified | FEAT |
+| `internal/command/command.go` | Modified | UPDATE |
+| `internal/utils/utils.go` | Modified | FEAT |
+| `cmd/cli/main.go` | Modified | UPDATE |
+| `.env.expample` | Modified | ADD |
+| `go.mod` | Modified | CHORE |
+| `go.sum` | Modified | CHORE |
 
 ***
 

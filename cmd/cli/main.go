@@ -45,11 +45,12 @@ func main() {
 	case "domain":
 	case "deploy":
 	default:
-		_, err := cmd.ComposeCMD()
+		result, err := cmd.ComposeCMD()
 		if err != nil {
 			slog.Error("failed to connect to remote server",
 				"err", err)
 		}
+		slog.Info("", "result", result)
 		// case "rm":
 		// case "ports":
 		// case "export":
