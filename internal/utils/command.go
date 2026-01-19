@@ -18,6 +18,14 @@ func CMDRun(command string, args ...string) error {
 	return nil
 }
 
+func CMDOutput(command string, args ...string) (string, error) {
+	out, err := exec.Command(command, args...).Output()
+	if err != nil {
+		return "", fmt.Errorf("exec %s: %w", command, err)
+	}
+	return string(out), nil
+}
+
 func SSHTest() error {
 	env, err := GetENV()
 	if err != nil {
@@ -77,6 +85,6 @@ func SSEOutput(args ...string) (string, error) {
 		env.Remote,
 		command,
 	}
-	out, err := exec.Command("sshpass", cmdArgs...).Output()
+	out, err := CMDOutput("sshpass", cmdArgs...)
 	return string(out), err
 }

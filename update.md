@@ -1,91 +1,55 @@
 # Update Log
 
-> Generated: 2026-01-19 17:30 (+00:00)
-> v0.7.0 → v0.8.0
+> Generated: 2026-01-19 17:58 (+00:00)
+> v0.8.0 → v0.9.0
 
 ## Recommended Commit Message
 
-feat: Add REST API server with SQLite persistence for pod management
+feat: add rsync dry-run preview with user confirmation before sync
 <details>
 <summary>翻譯</summary>
-feat: 新增 REST API Server 與 SQLite 持久化以管理 Pod
+feat: 新增 rsync dry-run 預覽與同步前使用者確認機制
 </details>
 
 ***
 
 ## Summary
 
-Add a complete REST API layer with SQLite database for persisting pod deployment information. The CLI now automatically syncs pod metadata to the database on up/down/clear operations, enabling centralized tracking of deployed containers across multiple hosts.
+Add interactive rsync preview with dry-run mode, allowing users to inspect file changes before confirming synchronization. Also add `CMDOutput` utility function for capturing command output.
 <details>
 <summary>翻譯</summary>
-新增完整 REST API 層與 SQLite 資料庫，用於持久化 Pod 部署資訊。CLI 現在會在 up/down/clear 操作時自動同步 Pod metadata 至資料庫，實現多主機部署容器的集中追蹤管理。
+新增互動式 rsync 預覽功能，使用 dry-run 模式讓使用者在確認同步前檢視檔案變更。同時新增 `CMDOutput` 工具函式以擷取命令輸出。
 </details>
 
 ## Changes
 
 ### FEAT
-- Add REST API server (`cmd/api`) with Gin framework for pod management
-- Add SQLite database layer (`internal/database`) with CRUD operations for pods
-- Add Pod model (`internal/model`) with hostname and IP tracking
-- Add API routes for pod upsert, update, and list operations
-- Integrate pod sync to database on compose up/down/clear commands
-- Add `GetLocalIP()` utility to capture deployer's IP address
+- Add rsync dry-run preview (`-avni`) to show pending changes before sync
+- Add user confirmation prompt (`y/N`) before executing actual sync
+- Add `changeExist()` helper to detect meaningful changes in rsync output
+- Add `CMDOutput()` utility function to capture command stdout
 
 <details>
 <summary>翻譯</summary>
 
-- 新增 REST API Server（`cmd/api`）使用 Gin 框架管理 Pod
-- 新增 SQLite 資料庫層（`internal/database`）支援 Pod CRUD 操作
-- 新增 Pod Model（`internal/model`）包含 hostname 與 IP 追蹤
-- 新增 API routes 支援 pod upsert、update、list 操作
-- 整合 compose up/down/clear 指令時自動同步 Pod 資訊至資料庫
-- 新增 `GetLocalIP()` utility 取得部署者 IP 位址
+- 新增 rsync dry-run 預覽 (`-avni`) 於同步前顯示待處理變更
+- 新增使用者確認提示 (`y/N`) 於執行實際同步前
+- 新增 `changeExist()` 輔助函式偵測 rsync 輸出中的有效變更
+- 新增 `CMDOutput()` 工具函式擷取命令標準輸出
 
 </details>
 
 ### UPDATE
-- Extend `PodmanArg` struct with `Hostname` and `IP` fields
-- Refactor `ComposeCMD` to return `*model.Pod` instead of string UID
-- Add pod info output (PodID, PodName, Hostname, IP) after successful deployment
+- Refactor `RsyncToRemote()` to separate preview and sync phases
+- Expand exclude list with `.next/`, `docker-compose.yml`, `docker-compose.yaml`, `app/package-lock.json`
+- Relocate visual separator to preview and sync phases for better UX
 
 <details>
 <summary>翻譯</summary>
 
-- 擴展 `PodmanArg` 結構新增 `Hostname` 與 `IP` 欄位
-- 重構 `ComposeCMD` 回傳 `*model.Pod` 取代字串 UID
-- 部署成功後輸出 Pod 資訊（PodID、PodName、Hostname、IP）
-
-</details>
-
-### FIX
-- Fix typo in previous commit message (extra `)` character)
-
-<details>
-<summary>翻譯</summary>
-
-- 修正上次 commit message 的錯字（多餘的 `)` 字元）
-
-</details>
-
-### ADD
-- Add SQL schema file (`sql/create.sql`) for pods, records, and domains tables
-- Add `.env.expample` DB_PATH configuration
-
-<details>
-<summary>翻譯</summary>
-
-- 新增 SQL schema 檔案（`sql/create.sql`）定義 pods、records、domains 資料表
-- 新增 `.env.expample` DB_PATH 設定項
-
-</details>
-
-### CHORE
-- Add gin-gonic/gin, mattn/go-sqlite3, and related dependencies
-
-<details>
-<summary>翻譯</summary>
-
-- 新增 gin-gonic/gin、mattn/go-sqlite3 及相關依賴
+- 重構 `RsyncToRemote()` 將預覽與同步階段分離
+- 擴充排除清單加入 `.next/`、`docker-compose.yml`、`docker-compose.yaml`、`app/package-lock.json`
+- 移動視覺分隔線至預覽與同步階段以改善使用者體驗
 
 </details>
 
@@ -95,18 +59,8 @@ Add a complete REST API layer with SQLite database for persisting pod deployment
 
 | File | Status | Tag |
 |------|--------|-----|
-| `cmd/api/main.go` | Added | FEAT |
-| `internal/database/sqlite.go` | Added | FEAT |
-| `internal/model/pod.go` | Added | FEAT |
-| `internal/routes/routes.go` | Added | FEAT |
-| `sql/create.sql` | Added | ADD |
-| `internal/command/composeCMD.go` | Modified | FEAT |
-| `internal/command/command.go` | Modified | UPDATE |
-| `internal/utils/utils.go` | Modified | FEAT |
-| `cmd/cli/main.go` | Modified | UPDATE |
-| `.env.expample` | Modified | ADD |
-| `go.mod` | Modified | CHORE |
-| `go.sum` | Modified | CHORE |
+| `internal/command/composeCMD.go` | Modified | FEAT, UPDATE |
+| `internal/utils/command.go` | Modified | FEAT |
 
 ***
 

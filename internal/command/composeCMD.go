@@ -55,7 +55,6 @@ func (p *PodmanArg) up(d *model.Pod) (*model.Pod, error) {
 
 	// * 同步檔案夾資料
 	fmt.Println("[*] syncing files")
-	fmt.Println(Hint + "──────────────────────────────────────────────────")
 	if err := p.RsyncToRemote(); err != nil {
 		return nil, err
 	}
@@ -215,19 +214,57 @@ func (p *PodmanArg) RsyncToRemote() error {
 		return err
 	}
 
-	cmdArgs := []string{
-		"-p", env.Password,
-		"rsync",
-		"-avz", "--delete",
+	excludes := []string{
 		"--exclude=node_modules/", "--exclude=vendor/", "--exclude=__pycache__/",
 		"--exclude=*.pyc", "--exclude=.venv/", "--exclude=venv/", "--exclude=env/",
 		"--exclude=.env.local", "--exclude=.git/", "--exclude=.gitignore",
 		"--exclude=*.log", "--exclude=.DS_Store", "--exclude=Thumbs.db",
+		"--exclude=.next/", "--exclude=docker-compose.yml", "--exclude=docker-compose.yaml", "--exclude=app/package-lock.json",
+	}
+
+	baseArgs := []string{
 		"-e", "ssh -o StrictHostKeyChecking=no",
 		p.LocalDir + "/",
 		fmt.Sprintf("%s:%s/", env.Remote, p.RemoteDir),
 	}
-	return utils.CMDRun("sshpass", cmdArgs...)
+
+	fmt.Println("[*] checking changes")
+	fmt.Println(Hint + "──────────────────────────────────────────────────")
+	checkArgs := []string{
+		"-p", env.Password,
+		"rsync",
+		"-avni",
+		"--delete",
+	}
+	checkArgs = append(checkArgs, excludes...)
+	checkArgs = append(checkArgs, baseArgs...)
+	output, err := utils.CMDOutput("sshpass", checkArgs...)
+	if err != nil {
+		return fmt.Errorf("preview failed: %w", err)
+	}
+	fmt.Print(output)
+	fmt.Println(Hint + "──────────────────────────────────────────────────" + Reset)
+
+	if changeExist(output) {
+		fmt.Print("[!] confirm sync? (y/N): ")
+		var confirm string
+		fmt.Scanln(&confirm)
+		if confirm != "y" && confirm != "Y" {
+			return fmt.Errorf("cancelled")
+		}
+	}
+
+	fmt.Println("[*] syncing")
+	fmt.Println(Hint + "──────────────────────────────────────────────────")
+	syncArgs := []string{
+		"-p", env.Password,
+		"rsync",
+		"-avz",
+		"--delete",
+	}
+	syncArgs = append(syncArgs, excludes...)
+	syncArgs = append(syncArgs, baseArgs...)
+	return utils.CMDRun("sshpass", syncArgs...)
 }
 
 func (p *PodmanArg) ModifyComposeFile() error {
@@ -300,4 +337,31 @@ func removePod(uid string) {
 	if resp.StatusCode != http.StatusOK {
 		return
 	}
+}
+
+// * exmaple
+// ──────────────────────────────────────────────────
+// sending incremental file list
+// .d..t....... ./
+
+// sent 1,009 bytes  received 25 bytes  2,068.00 bytes/sec
+// total size is 32,245  speedup is 31.18 (DRY RUN)
+// ──────────────────────────────────────────────────
+func changeExist(output string) bool {
+	lines := strings.Split(output, "\n")
+	for _, line := range lines {
+		if len(line) == 0 {
+			continue
+		}
+		if strings.HasPrefix(line, "sending") ||
+			strings.HasPrefix(line, "sent") ||
+			strings.HasPrefix(line, "total size") {
+			continue
+		}
+		if strings.HasPrefix(line, ".d..t.......") {
+			continue
+		}
+		return true
+	}
+	return false
 }
