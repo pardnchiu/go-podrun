@@ -19,6 +19,8 @@ type PodmanArg struct {
 	RemoteArgs []string
 	Target     string
 	File       string
+	Hostname   string
+	IP         string
 
 	// state
 	Detach bool
@@ -74,6 +76,12 @@ func New() (*PodmanArg, error) {
 func parseArgs(args []string) (*PodmanArg, error) {
 	newArg := &PodmanArg{Target: "podman"}
 	conposeExist := false
+
+	newArg.Hostname = utils.GetHostName()
+
+	if ip, err := utils.GetLocalIP(); err == nil {
+		newArg.IP = ip
+	}
 
 	for i := 0; i < len(args); {
 		arg := args[i]

@@ -1,11 +1,15 @@
 package command
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
 	"path/filepath"
 	"strings"
-	"time"
 
+	"github.com/pardnchiu/go-podrun/internal/model"
 	"github.com/pardnchiu/go-podrun/internal/utils"
 )
 
@@ -17,33 +21,18 @@ const (
 	Warn  = "\033[33m"
 )
 
-type Deploy struct {
-	UID       string
-	PodID     string
-	PodName   string
-	LocalDir  string
-	RemoteDir string
-	File      string
-	Target    string
-	Namespace string
-	Status    string
-	Creator   string
-	Replicas  int       // TODO: for k3s usage
-	CreatedAt time.Time // TODO: for record to database
-	UpdatedAt time.Time // TODO: for record to database
-}
-
-func (p *PodmanArg) ComposeCMD() (string, error) {
-	d := &Deploy{
+func (p *PodmanArg) ComposeCMD() (*model.Pod, error) {
+	d := &model.Pod{
 		UID:       p.UID,
 		PodID:     filepath.Base(p.RemoteDir),
 		PodName:   filepath.Base(p.RemoteDir),
 		LocalDir:  p.LocalDir,
 		RemoteDir: p.RemoteDir,
-		File:      "docker-compose.yml",
 		Target:    p.Target,
+		File:      p.File,
 		Status:    "starting",
-		Creator:   utils.GetHostName(),
+		Hostname:  p.Hostname,
+		IP:        p.IP,
 		Replicas:  1,
 	}
 
@@ -55,27 +44,27 @@ func (p *PodmanArg) ComposeCMD() (string, error) {
 	case "down", "ps", "logs", "restart", "exec", "build":
 		return p.runCMD(d)
 	}
-	return p.UID, nil
+	return nil, fmt.Errorf("unsupported command: %s", p.Command)
 }
 
-func (p *PodmanArg) up(d *Deploy) (string, error) {
+func (p *PodmanArg) up(d *model.Pod) (*model.Pod, error) {
 	fmt.Println("[+] create folder if not exist")
 	if err := utils.SSHRun("mkdir", "-p", p.RemoteDir); err != nil {
-		return "", err
+		return nil, err
 	}
 
 	// * 同步檔案夾資料
 	fmt.Println("[*] syncing files")
 	fmt.Println(Hint + "──────────────────────────────────────────────────")
 	if err := p.RsyncToRemote(); err != nil {
-		return "", err
+		return nil, err
 	}
 	fmt.Println("──────────────────────────────────────────────────" + Reset)
 
 	// * 調整 docker-compose.yml 內容
 	fmt.Println("[*] modifying compose file (remove ports)")
 	if err := p.ModifyComposeFile(); err != nil {
-		return "", fmt.Errorf("[x] failed to modify compose file: %w", err)
+		return nil, fmt.Errorf("[x] failed to modify compose file: %w", err)
 	}
 
 	// * 關閉舊的容器 (if exists)
@@ -84,6 +73,7 @@ func (p *PodmanArg) up(d *Deploy) (string, error) {
 		"cd '%s' && podman compose down -v >/dev/null 2>&1",
 		p.RemoteDir,
 	))
+	removePod(d.UID)
 
 	// * 執行動作
 	fmt.Printf("[*] executing: podman compose %s\n", strings.Join(p.RemoteArgs, " "))
@@ -100,9 +90,23 @@ func (p *PodmanArg) up(d *Deploy) (string, error) {
 			`, p.RemoteDir, remoteCmd)
 	}
 	if err := utils.SSHRun(remoteCmd); err != nil {
-		return "", err
+		return nil, err
 	}
 	fmt.Println(Hint + "──────────────────────────────────────────────────" + Reset)
+
+	// * 取得 Pod 資訊
+	projectName := filepath.Base(p.RemoteDir)
+	podInfo, err := utils.SSEOutput(fmt.Sprintf(
+		"podman pod ps --filter 'name=pod_%s' --format '{{.ID}}\t{{.Name}}'",
+		projectName,
+	))
+	if err == nil && podInfo != "" {
+		parts := strings.Split(strings.TrimSpace(podInfo), "\t")
+		if len(parts) >= 2 {
+			d.PodID = parts[0]
+			d.PodName = parts[1]
+		}
+	}
 
 	// * 輸出結果
 	if p.Detach {
@@ -111,15 +115,42 @@ func (p *PodmanArg) up(d *Deploy) (string, error) {
 		output, _ := utils.SSEOutput(fmt.Sprintf(
 			"cd '%s' && podman ps --filter 'label=io.podman.compose.project=%s' --format 'table {{.Names}}\t{{.Ports}}'",
 			p.RemoteDir,
-			filepath.Base(p.RemoteDir)),
+			projectName),
 		)
 		fmt.Println(output)
+		fmt.Printf("Pod ID: %s\n", d.PodID)
+		fmt.Printf("Pod Name: %s\n", d.PodName)
+		fmt.Printf("Hostname: %s\n", d.Hostname)
+		fmt.Printf("IP: %s\n", d.IP)
 		fmt.Println("──────────────────────────────────────────────────" + Reset)
 	}
-	return p.UID, nil
+
+	// *  發送 Pod 資訊到 API
+	fmt.Println("[*] syncing pod info to database")
+	jsonData, err := json.Marshal(d)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal json: %w", err)
+	}
+
+	resp, err := http.Post(
+		"http://localhost:8080/pod/upsert",
+		"application/json",
+		bytes.NewBuffer(jsonData),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to upsert pod: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("failed to upsert pod: status %d, body: %s", resp.StatusCode, string(body))
+	}
+
+	return d, nil
 }
 
-func (p *PodmanArg) clear(d *Deploy) (string, error) {
+func (p *PodmanArg) clear(d *model.Pod) (*model.Pod, error) {
 	// * 停止並移除容器和 volumes
 	fmt.Println("[*] remove containers and volumes")
 	fmt.Println(Hint + "──────────────────────────────────────────────────")
@@ -127,8 +158,9 @@ func (p *PodmanArg) clear(d *Deploy) (string, error) {
 		"cd '%s' && podman compose down -v 2>&1 | grep -v 'no container\\|no pod' || true",
 		p.RemoteDir,
 	)
+	removePod(d.UID)
 	if err := utils.SSHRun(downCmd); err != nil {
-		return "", fmt.Errorf("failed to remove containers: %w", err)
+		return nil, fmt.Errorf("failed to remove containers: %w", err)
 	}
 	fmt.Println("──────────────────────────────────────────────────" + Reset)
 
@@ -140,7 +172,7 @@ func (p *PodmanArg) clear(d *Deploy) (string, error) {
 		p.RemoteDir,
 	)
 	if err := utils.SSHRun(imageCmd); err != nil {
-		return "", fmt.Errorf("failed to remove images: %w", err)
+		return nil, fmt.Errorf("failed to remove images: %w", err)
 	}
 	fmt.Println("──────────────────────────────────────────────────" + Reset)
 
@@ -153,13 +185,13 @@ func (p *PodmanArg) clear(d *Deploy) (string, error) {
 		filepath.Base(p.RemoteDir),
 	)
 	if err := utils.SSHRun(removeCmd); err != nil {
-		return "", fmt.Errorf("failed to remove folder: %w", err)
+		return nil, fmt.Errorf("failed to remove folder: %w", err)
 	}
 	fmt.Println(Hint + "──────────────────────────────────────────────────" + Reset)
-	return p.UID, nil
+	return d, nil
 }
 
-func (p *PodmanArg) runCMD(d *Deploy) (string, error) {
+func (p *PodmanArg) runCMD(d *model.Pod) (*model.Pod, error) {
 	fmt.Printf("[*] executing: podman compose %s\n", strings.Join(p.RemoteArgs, " "))
 	fmt.Println(Hint + "──────────────────────────────────────────────────")
 	if err := utils.SSHRun(fmt.Sprintf(
@@ -167,10 +199,14 @@ func (p *PodmanArg) runCMD(d *Deploy) (string, error) {
 		p.RemoteDir,
 		shellJoin(p.RemoteArgs)),
 	); err != nil {
-		return "", err
+		return nil, err
 	}
 	fmt.Println(Hint + "──────────────────────────────────────────────────" + Reset)
-	return p.UID, nil
+
+	if p.Command == "down" {
+		removePod(d.UID)
+	}
+	return d, nil
 }
 
 func (p *PodmanArg) RsyncToRemote() error {
@@ -238,4 +274,30 @@ func shellJoin(args []string) string {
 		}
 	}
 	return strings.Join(escaped, " ")
+}
+
+func removePod(uid string) {
+	jsonData, err := json.Marshal(&model.Pod{
+		Dismiss: 1,
+	})
+	// * slience, if wrong, just wrong
+	if err != nil {
+		return
+	}
+
+	resp, err := http.Post(
+		"http://localhost:8080/pod/update/"+uid,
+		"application/json",
+		bytes.NewBuffer(jsonData),
+	)
+	// * slience, if wrong, just wrong
+	if err != nil {
+		return
+	}
+	defer resp.Body.Close()
+
+	// * slience, if wrong, just wrong
+	if resp.StatusCode != http.StatusOK {
+		return
+	}
 }
