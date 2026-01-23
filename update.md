@@ -1,81 +1,103 @@
 # Update Log
 
-> Generated: 2026-01-20 09:15 (+00:00)
-> v0.9.0 → v0.10.0
+> Generated: 2026-01-23 08:00 (+00:00)
+> v0.10.0 → v0.11.0
 
 ## Recommended Commit Message
 
-feat: add pod operation recording with new records API endpoint
+feat: add user management system with email allowlist and refactor codebase into modular architecture
 <details>
 <summary>翻譯</summary>
-feat: 新增 Pod 操作紀錄功能與 records API 端點
+feat: 新增使用者管理系統含 email 許可清單，並重構程式碼為模組化架構
 </details>
 
 ***
 
 ## Summary
 
-Add operation recording system to track pod lifecycle events (up, down, clear, sync, overwrite). Introduces `Record` model, database insert method, and REST endpoint for audit trail.
+Add user management system with model, database operations (list/upsert), and REST API endpoint. Introduce `ALLOW_EMAILS` environment variable for pre-seeding authorized users at startup. Refactor codebase by extracting database methods, command parsing, and route handlers into separate files for improved maintainability.
 <details>
 <summary>翻譯</summary>
-新增操作紀錄系統以追蹤 Pod 生命週期事件（up、down、clear、sync、overwrite）。引入 `Record` 模型、資料庫新增方法與 REST 端點用於稽核軌跡。
+新增使用者管理系統，包含模型、資料庫操作（列表/更新插入）與 REST API 端點。引入 `ALLOW_EMAILS` 環境變數於啟動時預先載入授權使用者。重構程式碼：將資料庫方法、命令解析與路由處理器抽離至獨立檔案，提升可維護性。
 </details>
 
 ## Changes
 
 ### FEAT
-- Add `Record` model with `UID`, `Content`, `Hostname`, `IP` fields
-- Add `recordPod()` function to log pod operations via API
-- Add `InsertRecord()` method in SQLite database layer
-- Add `/pod/record/insert` POST endpoint for record creation
-- Add `hostname` and `ip` columns to `records` table schema
+- Add `User` model with `ID`, `Email`, `CreatedAt`, `Dismiss` fields
+- Add `users` table schema with email unique constraint
+- Add `ListUsers()` database method to query active users
+- Add `UpsertUser()` database method for user creation/update
+- Add `/api/user/upsert` POST endpoint for user management
+- Add `ALLOW_EMAILS` env variable to pre-seed users on startup via comma-separated list
+- Add `user_id` foreign key reference in `records` table schema
 
 <details>
 <summary>翻譯</summary>
 
-- 新增 `Record` 模型含 `UID`、`Content`、`Hostname`、`IP` 欄位
-- 新增 `recordPod()` 函式透過 API 記錄 Pod 操作
-- 新增 SQLite 資料庫層的 `InsertRecord()` 方法
-- 新增 `/pod/record/insert` POST 端點用於建立紀錄
-- 新增 `hostname` 與 `ip` 欄位至 `records` 資料表結構
+- 新增 `User` 模型含 `ID`、`Email`、`CreatedAt`、`Dismiss` 欄位
+- 新增 `users` 資料表結構含 email 唯一約束
+- 新增 `ListUsers()` 資料庫方法查詢有效使用者
+- 新增 `UpsertUser()` 資料庫方法用於建立/更新使用者
+- 新增 `/api/user/upsert` POST 端點用於使用者管理
+- 新增 `ALLOW_EMAILS` 環境變數於啟動時透過逗號分隔清單預先載入使用者
+- 新增 `records` 資料表的 `user_id` 外鍵參照
 
 </details>
 
 ### UPDATE
-- Modify `RsyncToRemote()` to skip dry-run preview when remote directory is empty
-- Modify rsync exclude list to remove `docker-compose.yml`, `docker-compose.yaml` from sync phase
-- Add trusted proxy configuration (`127.0.0.1`, local IP) to Gin router
+- Change default database path from working directory to `~/.podrun/database.db`
+- Restructure API routes from `/pod/*` to `/api/pod/*` prefix
+- Add `/api/health` GET endpoint for service health check
+- Add `ALLOW_EMAILS` to `.env.example` with `REMOTE_SERVER` section comment
 
 <details>
 <summary>翻譯</summary>
 
-- 修改 `RsyncToRemote()` 當遠端目錄為空時跳過 dry-run 預覽
-- 修改 rsync 排除清單，同步階段移除 `docker-compose.yml`、`docker-compose.yaml`
-- 新增信任代理配置（`127.0.0.1`、本機 IP）至 Gin 路由器
+- 變更預設資料庫路徑從工作目錄改為 `~/.podrun/database.db`
+- 重新組織 API 路由從 `/pod/*` 改為 `/api/pod/*` 前綴
+- 新增 `/api/health` GET 端點用於服務健康檢查
+- 新增 `ALLOW_EMAILS` 至 `.env.example` 含 `REMOTE_SERVER` 區段註解
 
 </details>
 
 ### REFACTOR
-- Extract `upsertPod()` helper function from inline HTTP POST logic
-- Rename `ListContainers()` to `ListPods()` for consistency
-- Move `Record` struct from `database/sqlite.go` to `model/pod.go`
+- Extract `PodmanArg` struct and `parseArgs()` function to `internal/command/parseArgs.go`
+- Extract `UpsertPod()` method to `internal/database/upsertPod.go`
+- Extract `UpdatePod()` method to `internal/database/updatePod.go`
+- Extract `InsertRecord()` method to `internal/database/insertRecord.go`
+- Extract `ListPods()` method to `internal/database/listPods.go`
+- Extract `ListPodRecords()` method to `internal/database/listPodRecords.go`
+- Extract `PodInfo()` method to `internal/database/podInfo.go`
+- Extract `UpsertUser()` method to `internal/database/upsertUser.go`
+- Extract `ListUsers()` method to `internal/database/listUsers.go`
+- Create `internal/handler/` package with dedicated GET and POST handler functions
+- Move inline route handlers from `routes.go` to handler package
 
 <details>
 <summary>翻譯</summary>
 
-- 從內嵌 HTTP POST 邏輯中提取 `upsertPod()` 輔助函式
-- 將 `ListContainers()` 重新命名為 `ListPods()` 以保持一致性
-- 將 `Record` 結構從 `database/sqlite.go` 移至 `model/pod.go`
+- 抽離 `PodmanArg` 結構與 `parseArgs()` 函式至 `internal/command/parseArgs.go`
+- 抽離 `UpsertPod()` 方法至 `internal/database/upsertPod.go`
+- 抽離 `UpdatePod()` 方法至 `internal/database/updatePod.go`
+- 抽離 `InsertRecord()` 方法至 `internal/database/insertRecord.go`
+- 抽離 `ListPods()` 方法至 `internal/database/listPods.go`
+- 抽離 `ListPodRecords()` 方法至 `internal/database/listPodRecords.go`
+- 抽離 `PodInfo()` 方法至 `internal/database/podInfo.go`
+- 抽離 `UpsertUser()` 方法至 `internal/database/upsertUser.go`
+- 抽離 `ListUsers()` 方法至 `internal/database/listUsers.go`
+- 建立 `internal/handler/` 套件含專屬 GET 與 POST 處理函式
+- 將內嵌路由處理器從 `routes.go` 移至處理套件
 
 </details>
 
-### FIX
-- Remove incorrect `pod_uid = excluded.pod_uid` from UPSERT conflict clause
+### CHORE
+- Add `godotenv` dependency for loading `.env` files at startup
 
 <details>
 <summary>翻譯</summary>
 
-- 移除 UPSERT 衝突子句中錯誤的 `pod_uid = excluded.pod_uid`
+- 新增 `godotenv` 相依套件於啟動時載入 `.env` 檔案
 
 </details>
 
@@ -85,12 +107,25 @@ Add operation recording system to track pod lifecycle events (up, down, clear, s
 
 | File | Status | Tag |
 |------|--------|-----|
-| `internal/command/composeCMD.go` | Modified | FEAT, UPDATE, REFACTOR |
-| `internal/database/sqlite.go` | Modified | FEAT, REFACTOR, FIX |
-| `internal/model/pod.go` | Modified | FEAT |
-| `internal/routes/routes.go` | Modified | FEAT, UPDATE |
+| `.env.expample` | Modified | UPDATE |
+| `cmd/api/main.go` | Modified | FEAT, UPDATE, CHORE |
+| `internal/command/command.go` | Modified | REFACTOR |
+| `internal/command/parseArgs.go` | Added | REFACTOR |
+| `internal/database/sqlite.go` | Modified | REFACTOR |
+| `internal/database/upsertPod.go` | Added | REFACTOR |
+| `internal/database/updatePod.go` | Added | REFACTOR |
+| `internal/database/insertRecord.go` | Added | REFACTOR |
+| `internal/database/listPods.go` | Added | REFACTOR |
+| `internal/database/listPodRecords.go` | Added | REFACTOR |
+| `internal/database/podInfo.go` | Added | REFACTOR |
+| `internal/database/upsertUser.go` | Added | FEAT |
+| `internal/database/listUsers.go` | Added | FEAT |
+| `internal/model/user.go` | Added | FEAT |
+| `internal/handler/get.go` | Added | REFACTOR |
+| `internal/handler/post.go` | Added | REFACTOR, FEAT |
+| `internal/routes/routes.go` | Modified | REFACTOR, UPDATE |
 | `sql/create.sql` | Modified | FEAT |
 
 ***
 
-Generated by [Claude Code](https://gist.github.com/pardnchiu/cc619549138ccc7b57c073c314b7d0d8)
+Generated by [Claude Code](https://github.com/pardnchiu/skill-readme-generate)
