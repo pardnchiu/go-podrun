@@ -16,10 +16,7 @@ func (s *SQLite) InsertRecord(ctx context.Context, d *model.Record) error {
     (SELECT id FROM pods WHERE uid = ?), ?, ?, ?
   )
   `,
-		d.UID,
-		d.Content,
-		d.Hostname,
-		d.IP,
+		d.UID, d.Content, d.Hostname, d.IP,
 	)
 	return err
 }

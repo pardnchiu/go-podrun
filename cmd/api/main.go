@@ -8,7 +8,7 @@ import (
 
 	"github.com/joho/godotenv"
 	"github.com/pardnchiu/go-podrun/internal/database"
-	"github.com/pardnchiu/go-podrun/internal/routes"
+	"github.com/pardnchiu/go-podrun/internal/handler"
 )
 
 func init() {
@@ -58,7 +58,7 @@ func main() {
 	// 	}
 	// }
 
-	if err := routes.New(db); err != nil {
+	if err := handler.NewRoutes(db); err != nil {
 		log.Fatalf("[x] failed to initialize http: %v", err)
 	}
 }

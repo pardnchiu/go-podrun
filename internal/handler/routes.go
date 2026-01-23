@@ -1,4 +1,4 @@
-package routes
+package handler
 
 import (
 	"log"
@@ -6,13 +6,16 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/pardnchiu/go-podrun/internal/database"
-	"github.com/pardnchiu/go-podrun/internal/handler"
 	"github.com/pardnchiu/go-podrun/internal/utils"
 )
 
-func New(db *database.SQLite) error {
-	if handler.DB == nil {
-		handler.DB = db
+var (
+	DB *database.SQLite
+)
+
+func NewRoutes(db *database.SQLite) error {
+	if DB == nil {
+		DB = db
 	}
 
 	r := gin.Default()
@@ -28,16 +31,16 @@ func New(db *database.SQLite) error {
 	})
 
 	// * Pod > GET
-	r.GET("/api/pod/list", handler.GetAPIPodList)
+	r.GET("/api/pod/list", getAPIPodList)
 
 	// * Pod > POST
-	r.POST("/api/pod/upsert", handler.PostAPIPodUpsert)
-	r.POST("/api/pod/update/:uid", handler.PostAPIPodRecordUpdate)
-	r.POST("/api/pod/record/insert", handler.GetAPIPodRecordInsert)
+	r.POST("/api/pod/upsert", postAPIPodUpsert)
+	r.POST("/api/pod/update/:uid", postAPIPodRecordUpdate)
+	r.POST("/api/pod/record/insert", postAPIPodRecordInsert)
 
 	// # NOT THIS PROJECT POINT, REMOVE IT FOR NOW
 	// // * User > POST
-	// r.POST("/api/user/upsert", handler.PostAPIUserUpsert)
+	// r.POST("/api/user/upsert", PostAPIUserUpsert)
 
 	// * Other
 	r.GET("/api/health", func(ctx *gin.Context) {

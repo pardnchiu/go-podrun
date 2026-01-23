@@ -7,23 +7,17 @@ import (
 	"github.com/pardnchiu/go-podrun/internal/model"
 )
 
-// # NOT THIS PROJECT POINT, REMOVE IT FOR NOW
-// func PostAPIUserUpsert(ctx *gin.Context) {
-// 	var user model.User
-// 	if err := ctx.ShouldBindJSON(&user); err != nil {
-// 		ctx.String(http.StatusBadRequest, err.Error())
-// 		return
-// 	}
+func getAPIPodList(ctx *gin.Context) {
+	containers, err := DB.ListPods(ctx.Request.Context())
+	if err != nil {
+		ctx.String(http.StatusInternalServerError, err.Error())
+		return
+	}
 
-// 	if err := DB.UpsertUser(ctx.Request.Context(), &user); err != nil {
-// 		ctx.String(http.StatusInternalServerError, err.Error())
-// 		return
-// 	}
+	ctx.JSON(http.StatusOK, gin.H{"data": containers})
+}
 
-// 	ctx.String(http.StatusOK, "ok")
-// }
-
-func PostAPIPodUpsert(ctx *gin.Context) {
+func postAPIPodUpsert(ctx *gin.Context) {
 	var pod model.Pod
 	if err := ctx.ShouldBindJSON(&pod); err != nil {
 		ctx.String(http.StatusBadRequest, err.Error())
@@ -38,7 +32,7 @@ func PostAPIPodUpsert(ctx *gin.Context) {
 	ctx.String(http.StatusOK, "ok")
 }
 
-func PostAPIPodRecordUpdate(ctx *gin.Context) {
+func postAPIPodRecordUpdate(ctx *gin.Context) {
 	var pod model.Pod
 	if err := ctx.ShouldBindJSON(&pod); err != nil {
 		ctx.String(http.StatusBadRequest, err.Error())
@@ -60,7 +54,7 @@ func PostAPIPodRecordUpdate(ctx *gin.Context) {
 	ctx.String(http.StatusOK, "ok")
 }
 
-func GetAPIPodRecordInsert(ctx *gin.Context) {
+func postAPIPodRecordInsert(ctx *gin.Context) {
 	var record model.Record
 	if err := ctx.ShouldBindJSON(&record); err != nil {
 		ctx.String(http.StatusBadRequest, err.Error())
