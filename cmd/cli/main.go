@@ -12,7 +12,7 @@ import (
 
 func init() {
 	if err := godotenv.Load(); err != nil {
-		slog.Warn("Error loading .env file",
+		slog.Warn("failed to load .env",
 			slog.String("error", err.Error()))
 	}
 }

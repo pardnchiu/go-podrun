@@ -2,11 +2,12 @@ package main
 
 import (
 	"context"
-	"fmt"
+	"log"
 	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/joho/godotenv"
 	"github.com/pardnchiu/go-podrun/internal/database"
@@ -24,36 +25,38 @@ func init() {
 func main() {
 	dbPath := os.Getenv("DB_PATH")
 	if dbPath == "" {
-		home, err := os.UserHomeDir()
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
+		if _, err := os.Stat("/.dockerenv"); err == nil {
+			dbPath = "/data/database.db"
+		} else {
+			home, _ := os.UserHomeDir()
+			dbPath = filepath.Join(home, ".podrun", "database.db")
 		}
-		folderPath := filepath.Join(home, ".podrun")
-		os.MkdirAll(folderPath, 0755)
-		dbPath = filepath.Join(folderPath, "database.db")
 	}
 	db, err := database.NewSQLite(dbPath)
 	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+		log.Fatalf("[x] failed to create database: %v", err)
 	}
 
 	if emails := os.Getenv("ALLOW_EMAILS"); emails != "" {
-		ctx := context.Background()
-		for email := range strings.SplitSeq(emails, ",") {
-			email = strings.TrimSpace(email)
-			if email == "" {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		if err := db.ResetUsers(ctx); err != nil {
+			log.Fatalf("[x] failed to reset users: %v", err)
+		}
+
+		for e := range strings.SplitSeq(emails, ",") {
+			e = strings.TrimSpace(e)
+			if e == "" {
 				continue
 			}
-			if err := db.UpsertUser(ctx, &model.User{Email: email}); err != nil {
-				fmt.Printf("failed to insert email %s: %v\n", email, err)
+			if err := db.UpsertUser(ctx, &model.User{Email: e}); err != nil {
+				log.Fatalf("[x] failed to insert email %s: %v\n", e, err)
 			}
 		}
 	}
 
 	if err := routes.New(db); err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+		log.Fatalf("[x] failed to initialize http: %v", err)
 	}
 }
