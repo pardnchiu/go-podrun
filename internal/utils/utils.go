@@ -37,7 +37,7 @@ type Podrun struct {
 	Remote   string
 }
 
-func GetENV() (*Podrun, error) {
+func CheckENV() (*Podrun, error) {
 	server := os.Getenv("PODRUN_SERVER")
 	username := os.Getenv("PODRUN_USERNAME")
 	password := os.Getenv("PODRUN_PASSWORD")

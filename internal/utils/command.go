@@ -27,7 +27,7 @@ func CMDOutput(command string, args ...string) (string, error) {
 }
 
 func SSHTest() error {
-	env, err := GetENV()
+	env, err := CheckENV()
 	if err != nil {
 		return err
 	}
@@ -47,7 +47,7 @@ func SSHTest() error {
 }
 
 func SSHRun(args ...string) error {
-	env, err := GetENV()
+	env, err := CheckENV()
 	if err != nil {
 		return err
 	}
@@ -71,7 +71,7 @@ func SSHRun(args ...string) error {
 }
 
 func SSEOutput(args ...string) (string, error) {
-	env, err := GetENV()
+	env, err := CheckENV()
 	if err != nil {
 		return "", err
 	}

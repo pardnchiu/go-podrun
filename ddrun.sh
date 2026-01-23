@@ -5,7 +5,7 @@ REMOTE_SERVER="ddrun@192.168.0.200"
 REMOTE_BASE_PATH="/home/ddrun"
 PASSWORD=""
 
-# 自動安裝必要套件
+# 安裝必要套件
 check_dependencies() {
   local pkg_not_exists=false
 
@@ -21,7 +21,7 @@ check_dependencies() {
     if [[ "$OSTYPE" == "darwin"* ]]; then
       if ! command -v brew &> /dev/null; then
         /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"how_to_use
-        
+
         if ! command -v brew &> /dev/null; then
           echo "failed to install Homebrew, please install Homebrew manually from https://brew.sh/"
           exit 1
@@ -88,7 +88,7 @@ check_dependencies
 
 get_local_folder() {
   local folder="$1"
-  
+
   echo "[*] checking local folder" >&2
   # 無參數或相對路徑轉為絕對路徑
   if [ -z "$folder" ]; then
@@ -96,7 +96,7 @@ get_local_folder() {
   elif [[ "$folder" != /* ]]; then
     folder=$(realpath "$folder")
   fi
-  
+
   # 檢查目錄是否存在
   if [ ! -d "$folder" ]; then
     echo "[-] folder not exists: '$folder'" >&2
@@ -104,7 +104,7 @@ get_local_folder() {
     return 1
   fi
   echo "[*] local folder: $folder" >&2
-  
+
   # 檢查 docker-compose.yml | docker-compose.yaml 是否存在
   echo "[*] checking docker-compose file" >&2
   if [ ! -f "$folder/docker-compose.yml" ] && [ ! -f "$folder/docker-compose.yaml" ]; then
@@ -113,7 +113,7 @@ get_local_folder() {
     return 1
   fi
   echo "[*] docker-compose file exists" >&2
-  
+
   # 返回驗證後的資料夾路徑
   echo "$folder"
   return 0
@@ -121,7 +121,7 @@ get_local_folder() {
 
 get_remote_folder() {
   local folder="$1"
-  
+
   # 取得本地 MAC 地址
   local local_mac=""
 
@@ -129,17 +129,17 @@ get_remote_folder() {
     echo "[-] invalid folder paths"
     exit 1
   fi
-  
+
   echo "[*] checking MAC address" >&2
   # 主要方法 (ip)：取得預設網卡的 MAC
   if command -v ip &> /dev/null; then
     local default_iface=$(ip route | awk '/default/ {print $5; exit}')
-    
+
     if [ -n "$default_iface" ]; then
       local_mac=$(ip link show "$default_iface" 2>/dev/null | awk '/ether/ {print $2}')
     fi
   fi
-  
+
   # 備用方法1 (ifconfig)
   if [ -z "$local_mac" ] && command -v ifconfig &> /dev/null; then
     if [[ "$OSTYPE" == "darwin"* ]]; then
@@ -148,7 +148,7 @@ get_remote_folder() {
       local_mac=$(ifconfig 2>/dev/null | awk '/ether|HWaddr/ {print $2; exit}')
     fi
   fi
-  
+
   # 備用方法2 (file)：從 /sys/class/net 查找 (Linux)
   if [ -z "$local_mac" ] && [ -d "/sys/class/net" ]; then
     for iface in /sys/class/net/*/address; do
@@ -158,7 +158,7 @@ get_remote_folder() {
       fi
     done
   fi
-  
+
   # 備用方法3 (hostname)
   if [ -z "$local_mac" ]; then
     local_mac=$(hostname)
@@ -166,7 +166,7 @@ get_remote_folder() {
   fi
   echo "[*] local MAC: $local_mac" >&2
   echo "[*] origin: $local_mac@$folder" >&2
-  
+
   # 計算 MD5
   local name=""
   if command -v md5sum &> /dev/null; then
@@ -177,7 +177,7 @@ get_remote_folder() {
     # 備用：使用簡單 hash
     name=$(echo -n "$local_mac@$folder" | od -An -tx1 | tr -d ' \n' | head -c 32)
   fi
-  
+
   local remote_path="$REMOTE_BASE_PATH/$name"
   echo "[*] remote path: $remote_path" >&2
   echo "[*] completed folder check" >&2
@@ -185,7 +185,7 @@ get_remote_folder() {
   echo "  local folder: $folder" >&2
   printf "  remote path:  $remote_path\n\n" >&2
   printf "──────────────────────────────────────────────────\n" >&2
-  
+
   # 返回遠端路徑
   echo "$remote_path"
   return 0
@@ -195,7 +195,7 @@ show_logs() {
   show_header
 
   local input_folder="$1"
-  
+
   local local_folder=$(get_local_folder "$input_folder")
   if [ $? -ne 0 ]; then
     exit 1
@@ -210,7 +210,7 @@ show_logs() {
     echo "[-] invalid folder paths"
     exit 1
   fi
-  
+
   echo "[*] checking SSH connection"
   if ! sshpass -p "$PASSWORD" ssh -o ConnectTimeout=3 -o StrictHostKeyChecking=no -q "$REMOTE_SERVER" exit 2>/dev/null; then
     echo "[-] failed to connect to remote server: $REMOTE_SERVER"
@@ -227,7 +227,7 @@ cmd_up() {
   show_header
 
   local input_folder="$1"
-  
+
   local local_folder=$(get_local_folder "$input_folder")
   if [ $? -ne 0 ]; then
     exit 1
@@ -242,7 +242,7 @@ cmd_up() {
     echo "[-] invalid folder paths"
     exit 1
   fi
-  
+
   echo "[*] checking SSH connection"
   if ! sshpass -p "$PASSWORD" ssh -o ConnectTimeout=3 -o StrictHostKeyChecking=no -q "$REMOTE_SERVER" exit 2>/dev/null; then
     echo "[-] failed to connect to remote server: $REMOTE_SERVER"
@@ -252,7 +252,7 @@ cmd_up() {
 
   echo "[*] ensuring remote path exists"
   sshpass -p "$PASSWORD" ssh -o StrictHostKeyChecking=no "$REMOTE_SERVER" "mkdir -p '$remote_path'"
-  
+
   echo "[*] syncing files to remote server"
   printf "──────────────────────────────────────────────────\n\n"
   sshpass -p "$PASSWORD" rsync -avz --delete \
@@ -277,17 +277,17 @@ cmd_up() {
     echo "[-] failed to sync files to remote server"
     exit 1
   fi
-  
+
   echo "[*] restarting services on remote server"
   printf "──────────────────────────────────────────────────\n\n"
   sshpass -p "$PASSWORD" ssh -o StrictHostKeyChecking=no "$REMOTE_SERVER" "cd '$remote_path' && docker compose down && docker compose build --no-cache && docker compose up -d" 2>&1 | sed 's/^/  /'
   printf "\n──────────────────────────────────────────────────\n"
-  
+
   if [ $? -ne 0 ]; then
     echo "[-] failed to start services on remote server"
     exit 1
   fi
-  
+
   echo "[*] services started successfully"
   read -p "[+] Type 'y' to view logs: " confirm
 
@@ -302,7 +302,7 @@ cmd_down() {
   show_header
 
   local input_folder="$1"
-  
+
   local local_folder=$(get_local_folder "$input_folder")
   if [ $? -ne 0 ]; then
     exit 1
@@ -317,19 +317,19 @@ cmd_down() {
     echo "[-] invalid folder paths"
     exit 1
   fi
-  
+
   echo "[*] checking SSH connection"
   if ! sshpass -p "$PASSWORD" ssh -o ConnectTimeout=3 -o StrictHostKeyChecking=no -q "$REMOTE_SERVER" exit 2>/dev/null; then
     echo "[-] failed to connect to remote server: $REMOTE_SERVER"
     exit 1
   fi
   echo "[*] SSH connection successful"
-  
+
   echo "[*] shutdown services on remote server"
   printf "──────────────────────────────────────────────────\n\n"
   sshpass -p "$PASSWORD" ssh -o StrictHostKeyChecking=no "$REMOTE_SERVER" "cd '$remote_path' && docker compose down -v --remove-orphans" 2>&1 | sed 's/^/  /'
   printf "\n──────────────────────────────────────────────────\n"
-  
+
   if [ $? -eq 0 ]; then
     echo "[*] services stopped successfully"
   else
@@ -342,7 +342,7 @@ cmd_rm() {
   show_header
 
   local input_folder="$1"
-  
+
   local local_folder=$(get_local_folder "$input_folder")
   if [ $? -ne 0 ]; then
     exit 1
@@ -357,7 +357,7 @@ cmd_rm() {
     echo "[-] invalid folder paths"
     exit 1
   fi
-  
+
   echo "[*] checking SSH connection"
   if ! sshpass -p "$PASSWORD" ssh -o ConnectTimeout=3 -o StrictHostKeyChecking=no -q "$REMOTE_SERVER" exit 2>/dev/null; then
     echo "[-] failed to connect to remote server: $REMOTE_SERVER"
@@ -372,23 +372,23 @@ cmd_rm() {
     echo "[!] nothing to remove"
     exit 0
   fi
-    
+
   echo "[?] confirm removal of project"
   printf "──────────────────────────────────────────────────\n\n"
   echo "  local folder: $local_folder"
   printf "  remote path:  $remote_path\n\n"
   printf "──────────────────────────────────────────────────\n"
   read -p "[+] Type 'y' to confirm removal: " confirm
-  
+
   if [[ $confirm =~ ^[Yy]$ ]]; then
     echo "[*] shutdown services on remote server"
     printf "──────────────────────────────────────────────────\n\n"
     sshpass -p "$PASSWORD" ssh -o StrictHostKeyChecking=no "$REMOTE_SERVER" "cd '$remote_path' && docker compose down -v --remove-orphans" 2>&1 | sed 's/^/  /'
     printf "\n──────────────────────────────────────────────────\n"
-    
+
     echo "[*] waiting for containers to fully stop"
     sleep 3
-    
+
     echo "[*] cleaning up docker resources"
     printf "──────────────────────────────────────────────────\n\n"
     sshpass -p "$PASSWORD" ssh -o StrictHostKeyChecking=no "$REMOTE_SERVER" "docker system prune -f" 2>&1 | sed 's/^/  /'
@@ -399,7 +399,7 @@ cmd_rm() {
     sshpass -p "$PASSWORD" ssh -o StrictHostKeyChecking=no "$REMOTE_SERVER" \
       "docker run --rm --privileged -v '$(dirname $remote_path):/parent' alpine:latest \
       sh -c 'rm -rf /parent/$(basename $remote_path)'" > /dev/null 2>&1
-  
+
     if [ $? -eq 0 ]; then
       echo "[*] project removed successfully"
     else
@@ -414,12 +414,12 @@ cmd_rm() {
 
 check_remote_ports() {
   show_header
-  
+
   echo "[*] checking remote server ports"
   printf "──────────────────────────────────────────────────\n\n"
   local listening_ports=$(sshpass -p "$PASSWORD" ssh -o StrictHostKeyChecking=no "$REMOTE_SERVER" \
     "ss -tlnp | grep LISTEN | awk '{print \$4}' | grep -v ':5355' | grep -v '127.0.0.53' | grep -v '127.0.0.54' | sed 's/.*://' | sort -nu | tr '\n' ', ' | sed 's/,\$//'")
-  
+
   printf "  $listening_ports\n"
   printf "\n──────────────────────────────────────────────────\n"
 }

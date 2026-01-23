@@ -197,7 +197,7 @@ func (p *PodmanArg) runCMD(d *model.Pod) (*model.Pod, error) {
 }
 
 func (p *PodmanArg) RsyncToRemote(d *model.Pod) error {
-	env, err := utils.GetENV()
+	env, err := utils.CheckENV()
 	if err != nil {
 		return err
 	}

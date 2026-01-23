@@ -1,9 +1,8 @@
 package main
 
 import (
-	"fmt"
+	"log"
 	"log/slog"
-	"os"
 
 	"github.com/joho/godotenv"
 	"github.com/pardnchiu/go-podrun/internal/command"
@@ -19,26 +18,20 @@ func init() {
 
 func main() {
 	if err := utils.CheckRelyPackages(); err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+		log.Fatalf("missing required packages: %s", err)
 	}
 
-	_, err := utils.GetENV()
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+	if _, err := utils.CheckENV(); err != nil {
+		log.Fatalf("missing required environment: %s", err)
 	}
 
 	cmd, err := command.New()
 	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+		log.Fatalf("failed to create command: %s", err)
 	}
 
 	if err := utils.SSHTest(); err != nil {
-		slog.Error("failed to connect to remote server",
-			"err", err)
-		os.Exit(1)
+		log.Fatalf("failed to connect to remote server: %s", err)
 	}
 
 	switch cmd.RemoteArgs[0] {
