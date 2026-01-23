@@ -35,8 +35,9 @@ func New(db *database.SQLite) error {
 	r.POST("/api/pod/update/:uid", handler.PostAPIPodRecordUpdate)
 	r.POST("/api/pod/record/insert", handler.GetAPIPodRecordInsert)
 
-	// * User > POST
-	r.POST("/api/user/upsert", handler.PostAPIUserUpsert)
+	// # NOT THIS PROJECT POINT, REMOVE IT FOR NOW
+	// // * User > POST
+	// r.POST("/api/user/upsert", handler.PostAPIUserUpsert)
 
 	// * Other
 	r.GET("/api/health", func(ctx *gin.Context) {
